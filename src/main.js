@@ -1,19 +1,19 @@
 import * as THREE from 'three';
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { createGltfLoader } from './createGltfLoader.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { PRESETS, PRESET_IDS } from './presets.js';
 import { createAbstractDevice, applyDeviceFinish } from './createAbstractDevice.js';
+import { applyGltfColorFinish, centerAndFrameModel } from './applyGltfFinish.js';
 
 const HDR_PATH = 'https://threejs.org/examples/textures/equirectangular/';
 
 let camera, scene, renderer, controls, pmremGenerator;
-let gui, finishController;
+let gui;
 let currentModel = null;
 let gltfContext = null;
-
 const state = {
   industry: 'furniture',
   finish: 'Warm linen',
@@ -100,8 +100,7 @@ function applyEnvironment(mode, backgroundColor) {
 
   scene.background = new THREE.Color(backgroundColor ?? 0xbbbbbb);
   const roomEnv = new RoomEnvironment();
-  const envMap = pmremGenerator.fromScene(roomEnv, 0.04).texture;
-  scene.environment = envMap;
+  scene.environment = pmremGenerator.fromScene(roomEnv, 0.04).texture;
   roomEnv.dispose?.();
 }
 
@@ -139,12 +138,12 @@ function loadPreset(industryId) {
   if (gui) gui.destroy();
 
   loaderEl.classList.remove('hidden');
-  setLoadingProgress(0, `Loading ${preset.label.toLowerCase()}…`);
+  setLoadingProgress(0, `Loading ${preset.label}…`);
 
-  if (preset.model.type === 'procedural') {
+  if (preset.guiType === 'procedural') {
     currentModel = createAbstractDevice();
     scene.add(currentModel);
-    setupSaasGui(preset);
+    setupProceduralGui(preset);
     hideLoader();
     return;
   }
@@ -153,18 +152,21 @@ function loadPreset(industryId) {
 }
 
 function loadGltf(preset) {
-  const loader = new GLTFLoader();
+  const loader = createGltfLoader();
 
   loader.load(
     preset.model.url,
     (gltf) => {
       currentModel = gltf.scene;
+      if (preset.modelTargetHeight) centerAndFrameModel(currentModel, preset.modelTargetHeight);
       scene.add(currentModel);
 
-      const variantsExtension = gltf.userData.gltfExtensions?.KHR_materials_variants;
-      gltfContext = { parser: gltf.parser, variantsExtension };
+      gltfContext = {
+        parser: gltf.parser,
+        variantsExtension: gltf.userData.gltfExtensions?.KHR_materials_variants,
+      };
 
-      setupFurnitureGui(preset, gltf);
+      setupGuiForPreset(preset);
       hideLoader();
     },
     (event) => {
@@ -174,49 +176,76 @@ function loadGltf(preset) {
     },
     (err) => {
       console.error('Model load failed:', err);
-      loaderText.textContent = 'Failed to load model.';
+      loaderText.textContent = `Failed to load model: ${err?.message ?? err}`;
     },
   );
 }
 
-function setupFurnitureGui(preset, gltf) {
+function setupGuiForPreset(preset) {
+  switch (preset.guiType) {
+    case 'variants':
+      setupVariantGui(preset);
+      break;
+    case 'color':
+      setupColorFinishGui(preset);
+      break;
+    case 'procedural':
+      setupProceduralGui(preset);
+      break;
+    default:
+      break;
+  }
+}
+
+function setupVariantGui(preset) {
   const { variantsExtension, parser } = gltfContext;
 
   if (!variantsExtension) {
     gui = new GUI({ title: 'Controls' });
-    gui.add({ note: 'No material variants' }, 'note');
     return;
   }
 
   const variantNames = variantsExtension.variants.map((v) => v.name);
   const finishOptions = variantNames.map((name) => preset.variantLabels[name] ?? name);
-
   const labelToVariant = Object.fromEntries(
     variantNames.map((name) => [preset.variantLabels[name] ?? name, name]),
   );
 
-  const defaultLabel = preset.variantLabels[preset.defaultVariant] ?? variantNames[0];
-  state.finish = defaultLabel;
-
+  state.finish = preset.variantLabels[preset.defaultVariant] ?? finishOptions[0];
   selectGltfVariant(parser, variantsExtension, labelToVariant[state.finish]);
 
-  gui = new GUI({ title: 'Finish' });
-  finishController = gui.add(state, 'finish', finishOptions).name('Fabric');
-  finishController.onChange((label) => {
+  gui = new GUI({ title: 'Options' });
+  gui.add(state, 'finish', finishOptions).name('Fabric').onChange((label) => {
     selectGltfVariant(parser, variantsExtension, labelToVariant[label]);
   });
 }
 
-function setupSaasGui(preset) {
+function setupColorFinishGui(preset) {
   const finishOptions = preset.finishes.map((f) => f.label);
   const labelToFinish = Object.fromEntries(preset.finishes.map((f) => [f.label, f]));
 
-  state.finish = preset.finishes.find((f) => f.id === preset.defaultFinish)?.label ?? finishOptions[0];
+  if (!finishOptions.includes(state.finish)) {
+    state.finish =
+      preset.finishes.find((f) => f.id === preset.defaultFinish)?.label ?? finishOptions[0];
+  }
+  applyGltfColorFinish(currentModel, labelToFinish[state.finish]);
+
+  gui = new GUI({ title: 'Options' });
+  gui.add(state, 'finish', finishOptions).name('Finish').onChange((label) => {
+    applyGltfColorFinish(currentModel, labelToFinish[label]);
+  });
+}
+
+function setupProceduralGui(preset) {
+  const finishOptions = preset.finishes.map((f) => f.label);
+  const labelToFinish = Object.fromEntries(preset.finishes.map((f) => [f.label, f]));
+
+  state.finish =
+    preset.finishes.find((f) => f.id === preset.defaultFinish)?.label ?? finishOptions[0];
   applyDeviceFinish(currentModel, labelToFinish[state.finish]);
 
-  gui = new GUI({ title: 'Theme' });
-  finishController = gui.add(state, 'finish', finishOptions).name('Colorway');
-  finishController.onChange((label) => {
+  gui = new GUI({ title: 'Options' });
+  gui.add(state, 'finish', finishOptions).name('Theme').onChange((label) => {
     applyDeviceFinish(currentModel, labelToFinish[label]);
   });
 }

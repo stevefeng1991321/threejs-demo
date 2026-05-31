@@ -1,0 +1,113 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #111;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: #eee;
+}
+
+#info {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  padding: 1.25rem 1.5rem;
+  max-width: 22rem;
+  pointer-events: none;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.85);
+}
+
+#info h1 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.35rem;
+}
+
+#info p {
+  font-size: 0.8rem;
+  opacity: 0.9;
+  line-height: 1.4;
+}
+
+#info .hint {
+  margin-top: 0.75rem;
+  font-size: 0.7rem;
+  opacity: 0.55;
+}
+
+#industry-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  pointer-events: auto;
+}
+
+#industry-tabs button {
+  padding: 0.45rem 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.35);
+  color: #eee;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+#industry-tabs button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+#industry-tabs button.active {
+  background: rgba(74, 158, 255, 0.35);
+  border-color: #6af;
+}
+
+#loader {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  background: #111;
+  transition: opacity 0.4s ease;
+}
+
+#loader.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loader-bar {
+  width: min(280px, 70vw);
+  height: 4px;
+  background: #333;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.loader-fill {
+  width: 0%;
+  height: 100%;
+  background: #6af;
+  border-radius: 2px;
+  transition: width 0.15s ease;
+}
+
+#loader-text {
+  font-size: 0.8rem;
+  opacity: 0.7;
+}

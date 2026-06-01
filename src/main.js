@@ -19,8 +19,8 @@ let gltfContext = null;
 let workspaceModels = null;
 let safetyScenario = null;
 const state = {
-  industry: 'furniture',
-  finish: 'Warm linen',
+  industry: 'site',
+  finish: 'Storm damage',
 };
 
 const loaderEl = document.getElementById('loader');
@@ -75,6 +75,10 @@ function init() {
 
 function setupIndustryButtons() {
   const container = document.getElementById('industry-tabs');
+  if (PRESET_IDS.length <= 1) {
+    container.style.display = 'none';
+    return;
+  }
   PRESET_IDS.forEach((id) => {
     const btn = document.createElement('button');
     btn.type = 'button';

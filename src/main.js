@@ -6,7 +6,9 @@ import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { PRESETS, PRESET_IDS } from './presets.js';
 import { createAbstractDevice, applyDeviceFinish } from './createAbstractDevice.js';
-import { applyGltfColorFinish, centerAndFrameModel } from './applyGltfFinish.js';
+import { applyGltfColorFinish, frameAndPlace } from './applyGltfFinish.js';
+import { createSafetyScenario } from './safetyScenario.js';
+import { layoutSiteWorkspace } from './layoutSite.js';
 
 const HDR_PATH = 'https://threejs.org/examples/textures/equirectangular/';
 
@@ -14,6 +16,8 @@ let camera, scene, renderer, controls, pmremGenerator;
 let gui;
 let currentModel = null;
 let gltfContext = null;
+let workspaceModels = null;
+let safetyScenario = null;
 const state = {
   industry: 'furniture',
   finish: 'Warm linen',
@@ -24,6 +28,7 @@ const loaderFill = document.getElementById('loader-fill');
 const loaderText = document.getElementById('loader-text');
 const headlineEl = document.getElementById('headline');
 const taglineEl = document.getElementById('tagline');
+const infoHintEl = document.getElementById('info-hint');
 
 init();
 animate();
@@ -114,6 +119,9 @@ function applyCamera(preset) {
 }
 
 function disposeModel() {
+  safetyScenario?.dispose();
+  safetyScenario = null;
+
   if (!currentModel) return;
 
   scene.remove(currentModel);
@@ -126,6 +134,7 @@ function disposeModel() {
   });
   currentModel = null;
   gltfContext = null;
+  workspaceModels = null;
 }
 
 function loadPreset(industryId) {
@@ -148,6 +157,16 @@ function loadPreset(industryId) {
     return;
   }
 
+  if (preset.guiType === 'workspace') {
+    loadWorkspace(preset);
+    return;
+  }
+
+  if (preset.guiType === 'scenario') {
+    loadWorkspace(preset);
+    return;
+  }
+
   loadGltf(preset);
 }
 
@@ -158,7 +177,7 @@ function loadGltf(preset) {
     preset.model.url,
     (gltf) => {
       currentModel = gltf.scene;
-      if (preset.modelTargetHeight) centerAndFrameModel(currentModel, preset.modelTargetHeight);
+      if (preset.modelTargetHeight) frameAndPlace(currentModel, preset.modelTargetHeight);
       scene.add(currentModel);
 
       gltfContext = {
@@ -181,6 +200,73 @@ function loadGltf(preset) {
   );
 }
 
+function loadWorkspace(preset) {
+  const loader = createGltfLoader();
+  const group = new THREE.Group();
+  workspaceModels = {};
+  const { models } = preset;
+  let loadedCount = 0;
+
+  const loadModel = (def) =>
+    new Promise((resolve, reject) => {
+      loader.load(
+        def.url,
+        (gltf) => {
+          const model = gltf.scene;
+          const placement = def.position ?? [0, 0, 0];
+          frameAndPlace(model, def.targetHeight, placement, def.rotation);
+          model.userData.workspaceId = def.id;
+          group.add(model);
+          workspaceModels[def.id] = { object: model, materialKeywords: def.materialKeywords };
+          loadedCount += 1;
+          setLoadingProgress(loadedCount / models.length, `Loading ${def.label ?? def.id}…`);
+          resolve();
+        },
+        undefined,
+        reject,
+      );
+    });
+
+  Promise.all(models.map(loadModel))
+    .then(() => {
+      currentModel = group;
+      scene.add(group);
+
+      if (preset.guiType === 'scenario') {
+        const siteLayout = preset.layout === 'site' ? layoutSiteWorkspace(preset, workspaceModels) : null;
+        if (siteLayout) {
+          const { siteCenter } = siteLayout;
+          controls.target.copy(siteCenter);
+          controls.update();
+        }
+        applyWorkspaceFinish(preset, preset.finishes.find((f) => f.id === preset.defaultFinish));
+        infoHintEl.textContent = 'Click hazards and equipment · Drag to orbit · Scroll to zoom';
+        safetyScenario = createSafetyScenario({
+          scene,
+          camera,
+          renderer,
+          controls,
+          workspaceModels,
+          layout: siteLayout,
+          onHeadlineChange: (phase) => {
+            if (phase === 'identify') taglineEl.textContent = 'Identify all hazards on site';
+            if (phase === 'remediate') taglineEl.textContent = 'Isolate power · Move lift · Mark boundary';
+            if (phase === 'complete') taglineEl.textContent = 'Site secured — ready for repairs';
+          },
+        });
+      } else {
+        setupWorkspaceGui(preset);
+        infoHintEl.textContent = 'Drag to orbit · Scroll to zoom · Use the panel to change finish';
+      }
+
+      hideLoader();
+    })
+    .catch((err) => {
+      console.error('Workspace load failed:', err);
+      loaderText.textContent = `Failed to load workspace: ${err?.message ?? err}`;
+    });
+}
+
 function setupGuiForPreset(preset) {
   switch (preset.guiType) {
     case 'variants':
@@ -191,6 +277,9 @@ function setupGuiForPreset(preset) {
       break;
     case 'procedural':
       setupProceduralGui(preset);
+      break;
+    case 'workspace':
+      setupWorkspaceGui(preset);
       break;
     default:
       break;
@@ -228,11 +317,36 @@ function setupColorFinishGui(preset) {
     state.finish =
       preset.finishes.find((f) => f.id === preset.defaultFinish)?.label ?? finishOptions[0];
   }
-  applyGltfColorFinish(currentModel, labelToFinish[state.finish]);
+  applyGltfColorFinish(currentModel, labelToFinish[state.finish], preset.materialKeywords);
 
   gui = new GUI({ title: 'Options' });
   gui.add(state, 'finish', finishOptions).name('Finish').onChange((label) => {
-    applyGltfColorFinish(currentModel, labelToFinish[label]);
+    applyGltfColorFinish(currentModel, labelToFinish[label], preset.materialKeywords);
+  });
+}
+
+function applyWorkspaceFinish(preset, finish) {
+  preset.models.forEach((def) => {
+    const partFinish = finish[def.id];
+    const entry = workspaceModels?.[def.id];
+    if (!partFinish || !entry) return;
+    applyGltfColorFinish(entry.object, partFinish, def.materialKeywords);
+  });
+}
+
+function setupWorkspaceGui(preset) {
+  const finishOptions = preset.finishes.map((f) => f.label);
+  const labelToFinish = Object.fromEntries(preset.finishes.map((f) => [f.label, f]));
+
+  if (!finishOptions.includes(state.finish)) {
+    state.finish =
+      preset.finishes.find((f) => f.id === preset.defaultFinish)?.label ?? finishOptions[0];
+  }
+  applyWorkspaceFinish(preset, labelToFinish[state.finish]);
+
+  gui = new GUI({ title: 'Options' });
+  gui.add(state, 'finish', finishOptions).name('Site theme').onChange((label) => {
+    applyWorkspaceFinish(preset, labelToFinish[label]);
   });
 }
 
@@ -287,5 +401,6 @@ function onWindowResize() {
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
+  safetyScenario?.update();
   renderer.render(scene, camera);
 }

@@ -11,8 +11,25 @@
       <h1 id="headline">3D product viewer</h1>
       <p id="tagline">Interactive configurator demo</p>
       <div id="industry-tabs" aria-label="Industry preset"></div>
-      <p class="hint">Drag to orbit · Scroll to zoom · Use the panel to change finish</p>
+      <p class="hint" id="info-hint">Drag to orbit · Scroll to zoom · Use the panel to change finish</p>
     </div>
+    <div id="mission-panel" class="hidden">
+      <h2 id="mission-phase">Mission</h2>
+      <div id="mission-status" aria-label="Site status">
+        <span id="mission-circuit-status"></span>
+      </div>
+      <p id="mission-instruction"></p>
+      <ul id="mission-checklist"></ul>
+      <button type="button" id="mission-restore" class="hidden">Restore Power</button>
+    </div>
+    <div id="mission-modal" class="hidden">
+      <div class="mission-modal-card">
+        <h2 id="mission-modal-title"></h2>
+        <p id="mission-modal-body"></p>
+        <button type="button" id="mission-modal-action"></button>
+      </div>
+    </div>
+    <div id="mission-toast"></div>
     <div id="loader">
       <div class="loader-bar"><div class="loader-fill" id="loader-fill"></div></div>
       <span id="loader-text">Loading…</span>

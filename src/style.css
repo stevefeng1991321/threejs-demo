@@ -112,3 +112,165 @@ body {
   font-size: 0.8rem;
   opacity: 0.7;
 }
+
+#mission-panel {
+  position: fixed;
+  top: 1.25rem;
+  right: 1.25rem;
+  z-index: 10;
+  width: min(18rem, 42vw);
+  padding: 1rem 1.15rem;
+  border-radius: 10px;
+  background: rgba(10, 14, 22, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+  pointer-events: auto;
+}
+
+#mission-panel.hidden {
+  display: none;
+}
+
+#mission-panel h2 {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #8cf;
+}
+
+#mission-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+}
+
+#mission-circuit-status {
+  font-size: 0.72rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  opacity: 0.9;
+}
+
+#mission-instruction {
+  font-size: 0.75rem;
+  line-height: 1.45;
+  opacity: 0.85;
+  margin-bottom: 0.75rem;
+}
+
+#mission-checklist {
+  list-style: none;
+  font-size: 0.72rem;
+  line-height: 1.6;
+}
+
+#mission-checklist li {
+  opacity: 0.7;
+  padding: 0.15rem 0;
+}
+
+#mission-checklist li.done {
+  opacity: 1;
+  color: #7dffa0;
+}
+
+#mission-restore {
+  width: 100%;
+  margin-top: 0.85rem;
+  padding: 0.6rem 0.9rem;
+  border: none;
+  border-radius: 8px;
+  background: #7dffa0;
+  color: #07110a;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+#mission-restore:hover {
+  background: #9bffb7;
+}
+
+#mission-restore.hidden {
+  display: none;
+}
+
+#mission-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(4px);
+}
+
+#mission-modal.hidden {
+  display: none;
+}
+
+.mission-modal-card {
+  max-width: 26rem;
+  padding: 1.75rem;
+  border-radius: 12px;
+  background: #1a2030;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.mission-modal-card h2 {
+  font-size: 1.15rem;
+  margin-bottom: 0.75rem;
+  color: #fff;
+}
+
+.mission-modal-card p {
+  font-size: 0.85rem;
+  line-height: 1.55;
+  opacity: 0.88;
+  margin-bottom: 1.25rem;
+}
+
+#mission-modal-action {
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 8px;
+  background: #4a9eff;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+#mission-modal-action:hover {
+  background: #6bb0ff;
+}
+
+#mission-toast {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(1rem);
+  z-index: 25;
+  max-width: min(28rem, 90vw);
+  padding: 0.75rem 1.1rem;
+  border-radius: 8px;
+  background: rgba(20, 28, 40, 0.92);
+  border: 1px solid rgba(140, 200, 255, 0.35);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+#mission-toast.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
